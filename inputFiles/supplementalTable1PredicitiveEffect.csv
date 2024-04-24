@@ -1,0 +1,5 @@
+Variant,Predicted Effect,Score,Expected Accuracy,
+K27T,neutral,-17,57%,213 To 222
+V98F,neutral,-85,93%,213 To 222
+T27K,neutral,-72,87%,222 To 213
+F98V,neutral,-38,66%,222 To 213
