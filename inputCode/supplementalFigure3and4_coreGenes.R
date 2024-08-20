@@ -593,9 +593,13 @@ yearSubC <-
    coord_cartesian(clip = 'off')
 
                              
-ggpubr::ggarrange(yearSubA, yearSubC,
+combinedYear <- ggpubr::ggarrange(yearSubA, yearSubC,
                   nrow = 2,
                   labels = c('A', 'B'))
+
+ggplot2::ggsave(here::here("02_Manuscript/outputFigures", 'supplementalFigure4Year.pdf'),
+                combinedYear,  device = 'pdf', width = 45, height = 30, units= 'cm')
+
                   
 ### By Region
 genesRegion <- c('C', 'NC', 'NE')
@@ -929,6 +933,9 @@ regionSubC <-
    coord_cartesian(clip = 'off')
 
 ## Combine the three subplots and export to pdf as 16 x 12 inches
-ggpubr::ggarrange(regionSubA, regionSubB, regionSubC,
+combinedRegion <-ggpubr::ggarrange(regionSubA, regionSubB, regionSubC,
                   nrow = 3,
                   labels = c('A', 'B', 'C'))
+
+ggplot2::ggsave(here::here("02_Manuscript/outputFigures", 'supplementalFigure3Reion.pdf'),
+                combinedRegion,  device = 'pdf', width = 45, height = 30, units= 'cm')

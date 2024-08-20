@@ -286,20 +286,24 @@ tseries::adf.test(timeSeriesCount)
 # data:  tsCountLogDiff
 # Dickey-Fuller = -2.3064, Lag order = 3, p-value = 0.4552
 # alternative hypothesis: stationary
-# Because p is less than 0.05, we can reject the null hypothesis indicating
-# that our data is stationary. Note that we take the log and difference to 
-# data
+# Because p is greater than 0.05, we cannot reject the null hypothesis
+# indicating that our data is non-stationary. Note that we take the log and 
+# difference to data to do linear model anlaysis
 
 isoTime <- forecast::tslm(timeSeriesCount ~ time(timeSeriesCount))
 
 fit <- forecast::tslm(timeSeriesCount ~ trend )
 
-forecast::checkresiduals(fit)
+forecast::checkresiduals(fit) ## supplemental figure 1
+
+ggplot2::ggsave(here::here("02_Manuscript/outputFigures", 'supplementalFigure1CheckresidualsST222.pdf'),
+                pBig222,  device = 'pdf', width = 45, height = 30, units= 'cm')
 #Breusch-Godfrey test for serial correlation of order up to 6
 #
 #data:  Residuals from Linear regression model
 #LM test = 3.8053, df = 6, p-value = 0.703
 
+## Additional checking 
 fitFC <- forecast::forecast(fit, h=10)
 
 fitFC$mean <- exp(fitFC$mean)

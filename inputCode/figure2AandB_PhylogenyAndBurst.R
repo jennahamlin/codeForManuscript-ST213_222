@@ -172,7 +172,7 @@ combined <- combined +
   cowplot::draw_line(x = 0.90, y = c(0.24, 0.39), color = "black", size = 2)
 combined
  
-ggplot2::ggsave(here::here("02_Manuscript/outputFiles", 'Figure2AandB-CCandP.pdf'),
+ggplot2::ggsave(here::here("02_Manuscript/outputFiguress", 'figure2AandB-CCandP.pdf'),
                 combined,  device = 'pdf', width = 45, height = 30, units= 'cm')
 
  

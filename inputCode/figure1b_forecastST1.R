@@ -82,39 +82,38 @@ p1 <- ggplot2::ggplot(isoBioFullCountRate[1:29,], aes(x = year, y = caseCount,
 lModel <- lm(caseCount ~ year, data = isoBioFullCountLog[1:29,])
 
 st1 <- summary(lModel)
-# 
-# Call:
-#   lm(formula = caseCount ~ year, data = isoBioFullCountLog[1:29, 
-#   ])
-# 
-# Residuals:
-#   Min      1Q  Median      3Q     Max 
-# -1.5327 -0.5119  0.1447  0.5422  1.3398 
-# 
-# Coefficients:
-#   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept) -140.30787   32.74696  -4.285 0.000208 ***
-#   year           0.07077    0.01632   4.335 0.000181 ***
-#   ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-# 
-# Residual standard error: 0.7355 on 27 degrees of freedom
-# Multiple R-squared:  0.4104,	Adjusted R-squared:  0.3886 
-# F-statistic:  18.8 on 1 and 27 DF,  p-value: 0.0001814
+#Call:
+#  lm(formula = caseCount ~ year, data = isoBioFullCountLog[1:29, 
+#  ])
+#
+#Residuals:
+#  Min      1Q  Median      3Q     Max 
+#-1.5083 -0.5140  0.1598  0.5019  1.3315 
+#
+#Coefficients:
+#  Estimate Std. Error t value Pr(>|t|)    
+#(Intercept) -137.19323   32.31803  -4.245 0.000231 ***
+#  year           0.06921    0.01611   4.296 0.000201 ***
+#  ---
+#  Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+#Residual standard error: 0.7259 on 27 degrees of freedom
+#Multiple R-squared:  0.406,	Adjusted R-squared:  0.384 
+#F-statistic: 18.46 on 1 and 27 DF,  p-value: 0.0002014
 
 ###########using tigerstats for additional check on equation of the line
 #library(tigerstats)
 # lmGC(caseCount ~ year, data = isoBioFullCountLog)
 # Linear Regression
 # 
-# Correlation coefficient r =  0.6406 
+# Correlation coefficient r =   0.6372  
 # 
 # Equation of Regression Line:
 #   
-#   caseCount = -140.3079 + 0.0708 * year 
+#   caseCount = -137.1932 + 0.0692 * year 
 # 
-# Residual Standard Error:	s   = 0.7355 
-# R^2 (unadjusted):		R^2 = 0.4104 
+# Residual Standard Error:	s = 0.7259  
+# R^2 (unadjusted):		R^2 = 0.406 
 
 #exponentiate the predict value along with prediction intervals for 1992 - 2020
 #along with the future (2021 - 2030) this is to generate the fit and prediction
@@ -135,16 +134,16 @@ isoExpHisTime <- isoExpHisTime %>%
 
 #estimated case count for next 10 years with intervals
 #    futTime      fit      lwr      upr
-# 2021 14.878836 2.9252698  75.678409
-# 2022 16.005782 3.1138454  82.272894
-# 2023 17.218085 3.3126693  89.493528
-# 2024 18.522210 3.5222005  97.402821
-# 2025 19.925111 3.7429165 106.069705
-# 2026 21.434270 3.9753147 115.570203
-# 2027 23.057735 4.2199130 125.988177
-# 2028 24.804164 4.4772508 137.416145
-# 2029 26.682870 4.7478903 149.956191
-# 2030 28.703872 5.0324174 163.720973
+#30 2021 14.671698 2.9802667  72.228008
+#31 2022 15.723135 3.1601983  78.228310
+#32 2023 16.849922 3.3489596  84.778528
+#33 2024 18.057459 3.5468868  91.931843
+#34 2025 19.351534 3.7543273  99.746731
+#35 2026 20.738348 3.9716412 108.287495
+#36 2027 22.224547 4.1992014 117.624859
+#37 2028 23.817253 4.4373944 127.836624
+#38 2029 25.524099 4.6866211 139.008382
+#39 2030 27.353265 4.9472973 151.234311
 
 pBig1 <- ggplot(isoBioFullCountRate[1:29,], aes(x = year, y = caseCount,
                                                 group = 1))+ #add group = 1 to aes for line
@@ -178,13 +177,6 @@ pBig1 <- pBig1 + annotate("text", x = 1996, y = 292,
 #add time line information and dotted line
 gline = linesGrob(gp = gpar(col = "black", lty = "dotted" ))
 
-#firstUSA <- grid::textGrob("ST1 - 1982 \nCA & IN, USA",
-#                      gp=gpar(fontsize=8, col = 'gray'))
-
-#xTitle1 <- textGrob("Past and Future Rate: 1992-2030",
-#                    gp=gpar(fontsize=16, col = 'black', fontfamily = "sans",
-#                            fontface = "bold"))
-
 pInset1 <- ggplot(isoBioFullCountRate[1:29,], aes(x = year, y = caseCount,
                                                   group = 1))+ #add group = 1 to aes for line
   geom_line()+
@@ -209,16 +201,12 @@ pBig1 <- pBig1 + ggplot2::annotation_custom(ggplotGrob(pInset1),
                                             ymin = 78, ymax = 278)
 pBig1 <- pBig1 +
   theme(plot.margin = unit(c(0.5, 1, 0.25, 1), "cm"))
-#+
-#annotation_custom(firstUSA, xmin=1982.5, xmax=1982.5, ymin = 70, ymax = 70)+
-#annotation_custom(gline, xmin=1982.5, xmax=1982.5, ymin = 10, ymax= 40)+
-# annotation_custom(xTitle1,xmin=2005, xmax=2005, ymin = 335, ymax = 335)
 
 pBig1 <- pBig1 + coord_cartesian(clip="off")
 
 #don't forget to dev off
 #dev.off()
-# 
+ 
 ## Check residuals using the function checkresiduals from forecast package
 ## Add years with no isolates collected for time series analysis
 isoBioFullCountOGTest <- rbind(isoBioFullCountOG, c(1997, 0))
@@ -238,7 +226,7 @@ tseries::adf.test(timeSeriesCount)
 
 #Augmented Dickey-Fuller Test
 # data:  timeSeriesCount
-# Dickey-Fuller = -4.2888, Lag order = 3, p-value = 0.01227
+# Dickey-Fuller = -4.1691, Lag order = 3, p-value = 0.01654
 # alternative hypothesis: stationary
 
 #This indicates that the time series is stationary due to the p-value being 
@@ -271,7 +259,10 @@ tseries::adf.test(timeSeriesCount)
 #time series is stationary.
 
 isoTime <- forecast::tslm(timeSeriesCount ~ time(timeSeriesCount))
-forecast::checkresiduals(isoTime)
+forecast::checkresiduals(isoTime) # supplemental figure 2
+
+ggplot2::ggsave(here::here("02_Manuscript/outputFigures", 'supplementalFigure2CheckresidualsST1.pdf'),
+                pBig1,  device = 'pdf', width = 45, height = 30, units= 'cm')
 
 # Breusch-Godfrey test for serial correlation of order up to 6
 # 

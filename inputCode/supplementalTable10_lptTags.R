@@ -2,8 +2,6 @@
 #library(tidyverse)
 #library(magrittr)
 
-# 
-
 # Create new columns of locus tags, including those present in more than one copy.
 # This will replace the original column in the dataset and allow insertion of 
 # blanks when a locus tag does not appear more than once for certain samples
