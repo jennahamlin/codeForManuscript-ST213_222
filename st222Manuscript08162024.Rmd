@@ -1,0 +1,823 @@
+---
+title: "Expanded Geographic Distribution for Two *Legionella pneumophila* Sequence Types of Clinical Concern"
+subtitle: "Geographic increase of *L. pneumophila* ST213/222"
+output: 
+    word_document: default
+    bookdown::word_document2:
+    keep_tex: true
+    citation_package: biblatex
+    latex_engine: lualatex
+bibliography: myLibraryShort.bib
+csl: american-society-for-microbiology.csl
+my-abstract: "*Legionella pneumophila* serogroup 1 sequence types (ST) 213 and 222, a single-locus variant of ST213, were first detected in the early 1990s in the Midwest United States (US) and the late 1990s in the Northeast US and Canada. Since 1992, these STs have increasingly been implicated in community-acquired sporadic and outbreak-associated Legionnaires’ disease (LD) cases. We were interested in understanding the change in LD frequency due to these STs and identifying genetic features that differentiate these STs from one another. For the geographic area examined here (Mountain West to Northeast) and over the study period (1992 - 2020), ST213/222-associated LD cases identified by the Centers for Disease Control and Prevention increased by 0.15 cases per year, with ST213/222-associated LD cases concentrated in four states: Michigan (26%), New York (18%), Minnesota (16%), and Ohio (10%). Additionally, between 2002 and 2021, ST222 caused at least five LD outbreaks in the US; no known outbreaks due to ST213 occurred in the US during this time. We compared the genomes of 230 ST213/222 isolates and found that the mean of the average nucleotide identity (ANI) within each ST was high (99.92% for ST222 and 99.92% for ST213), with a minimum between ST ANI of 99.5% and a maximum of 99.87%, indicating low genetic diversity within and between these STs. While genomic features were identified (e.g., plasmids CRISPR-Cas systems), no association explained the increasing geographic distribution and prevalence of ST213 and ST222. Yet, we provide evidence of the expanded geographical distribution of ST213 and ST222 in the US."
+
+my-importance: "Since the 1990s, cases of Legionnaires’ Disease (LD) attributed to a pair of closely related *Legionella pneumophila* variants, ST213 and ST222, have increased in the US. Furthermore, between 2002 and 2021, ST222 caused at least five outbreaks of LD in the US, while ST213 has not been linked to any US outbreak. We wanted to understand how the rate of LD cases attributed to these variants has changed over time and compare the genetic features of the two variants. Between 1992 and 2020, we determined an increase of 0.15 LD cases ascribed to ST213/222 per year in the geographic region studied. Our research shows that these STs are spreading within the US, yet most of the cases occurred in four states: Michigan, New York, Minnesota, and Ohio. Additionally, we found little genetic diversity within and between these STs nor could specific genetic features explain their geographic spread."
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stringr)
+library(magrittr)
+library(here)
+library(english)
+library(reshape2)
+
+# in yaml at one point i needed this biblatexoptions: [backend=biber, maxbibnames=999]
+
+## Requires tinytex R package and the TinyTex Latex Distribution
+## tinytex::install_tinytex()
+## install.packages("tinytex")
+```
+
+```{r st222 Meta, message=FALSE, warning=FALSE, echo=FALSE}
+
+########################
+#        META          #
+########################
+
+# Define a function to read and clean metadata
+read_and_clean_metadata <- function(filepath,  filter_accessions = TRUE) {
+  isoLoc <- read.csv(filepath, header = TRUE, stringsAsFactors = FALSE)
+  
+  if (filter_accessions) {
+    isoLoc <- isoLoc %>%
+      filter(isolateAccession != "C180", isolateAccession != "U10")
+  }
+  
+  return(isoLoc)
+}
+
+# Define a function to get min and max years for specific ST clonal complexes
+get_year_range <- function(data, st_values) {
+  data %>%
+    filter(elGatoSTCalls %in% st_values, Year != "Unknown") %>%
+    summarize(minYear = min(Year), maxYear = max(Year))
+}
+
+# Define a function to calculate case counts by state
+get_state_case_counts <- function(data) {
+  state_counts <- data %>%
+    filter(Source != 'Environmental', Source != 'Unknown') %>%
+    group_by(State) %>%
+    summarize(caseCount = n()) %>%
+    arrange(desc(caseCount))
+  
+  state_counts$State <- state.name[match(state_counts$State, state.abb)]
+  state_counts
+}
+
+# Define a function to tally data for various groupings
+tally_group <- function(data, grouping_vars) {
+  data %>%
+    group_by(across(all_of(grouping_vars))) %>%
+    tally()
+}
+
+# Define a function to calculate percent cases
+calculate_percent <- function(counts, total) {
+  counts %>%
+    mutate(percent = round(caseCount / total * 100, 2))
+}
+
+# File path to metadata
+metadata_file <- here::here('02_Manuscript/inputFiles', 'supplementalTable2Metadata-ST213andST222.csv')
+
+# Read and clean metadata
+isoLoc <- read_and_clean_metadata(metadata_file, filter_accessions = TRUE)
+
+# Get year range for ST213/ST222
+year_range <- get_year_range(isoLoc, c('213', '222'))
+
+# Get state case counts
+isoOrigin <- get_state_case_counts(isoLoc)
+totalOrg <- sum(isoOrigin$caseCount)
+
+# Get total isolates
+totST <- isoLoc %>% tally()
+
+# Get counts parsed by sample set
+sampleSetST <- tally_group(isoLoc, "samplesSet")
+
+# Count by STs
+stCount <- tally_group(isoLoc %>% na.omit(), "elGatoSTCalls")
+
+stCount <- as.data.frame(stCount)
+
+# Source counts
+sourceCount <- tally_group(isoLoc, "Source")
+
+# Counts for isolates with an unknown collection year
+noYear <- isoLoc %>% filter(Year == 'Unknown') %>% tally()
+
+# Counts parsed by state and sample set
+stateSampleSet <- tally_group(isoLoc %>% filter(samplesSet != 'cdc'), c("samplesSet", "State"))
+stateSampleSet$State <- state.name[match(stateSampleSet$State, state.abb)]
+
+# Get counts for region bins
+regionCount <- tally_group(isoLoc %>% filter(panGenomeRegion == 'Include'), "Region")
+
+# Get counts for year bins
+yearBin <- tally_group(isoLoc %>% filter(whyExcludeYear == 'None'), "panGenomeYear")
+
+# Get counts parsed by years
+yearCount <- tally_group(isoLoc, "Year")
+
+# Get counts of cases parsed by type
+totSporadic <- tally_group(isoLoc %>% filter(Source != 'Environmental', Source != 'Unknown'), c("elGatoSTCalls", "Type"))
+
+# Get counts of sporadic cases for ST213/222
+jst213222Spor <- totSporadic %>%
+  filter(Type == 'Sporadic', elGatoSTCalls %in% c('213', '222'))
+
+# Get total sporadic cases parsed by ST for 2019
+yearSporadic <- tally_group(isoLoc %>% filter(Year == 2019), c("elGatoSTCalls", "Type", "Year"))
+
+# Get number of isolates classified as outbreak
+outbreakCount <- tally_group(isoLoc, "Type")
+
+# Counts of clinical, environmental, and unknown parsed by ST
+typeCount <- tally_group(isoLoc, c("Source", "elGatoSTCalls"))
+
+```
+
+```{r, st222 Rate, echo = FALSE, warning = FALSE, message = FALSE}
+
+########################
+#         RATE        #
+########################
+
+## Prepare data: Convert Year and ST to numeric
+isoLoc$Year <- as.numeric(gsub(",", "", isoLoc$Year))
+isoLoc$ST <- as.numeric(gsub(",", "", isoLoc$elGatoSTCalls))
+
+## Filter and summarize case counts by year
+isoCount <- isoLoc %>%
+  dplyr::filter(Source != 'Environmental' & Source != 'Unknown') %>%
+  dplyr::group_by(Year) %>%
+  dplyr::summarize(caseCount = n(), .groups = 'drop') 
+
+## Remove years with zero cases: Based on your description,
+## manually adjust years with known zero cases (1992-1996 and 1998-2000)
+years_with_zero_cases <- c(1992:1996, 1998:2000)
+isoCount <- isoCount %>%
+  dplyr::filter(!(Year %in% years_with_zero_cases))
+
+## Add years with zero cases and calculate their rates
+zero_case_data <- data.frame(
+  Year = c(1992:1996, 1998:2000),
+  caseCount = c(rep(2/5, 5), rep(2/3, 3))
+)
+
+## Combine and sort data
+isoCount <- dplyr::bind_rows(isoCount, zero_case_data) %>%
+  dplyr::arrange(Year)
+
+## Take the log of caseCount
+isoCount <- isoCount %>%
+  dplyr::mutate(log_caseCount = log(caseCount))
+
+## Generate a linear model to estimate slope and intercept
+lModel <- lm(log_caseCount ~ Year, data = isoCount)
+
+## Summary of the linear model
+st222Mod <- summary(lModel)
+
+## Display results
+#st222Mod
+```
+
+```{r, st222_213_ANI, echo = FALSE, warning = FALSE, message = FALSE}
+
+########################
+#    INTRA - ANI       #
+########################
+
+# Define a function to read, clean, and calculate the mean ANI
+meanANI <- function(filepath) {
+  myDF <- read.csv(here::here('02_Manuscript/inputFiles', filepath),
+                    header = TRUE, stringsAsFactors = FALSE, sep = "\t")
+  myDF[upper.tri(myDF)] <- NA  # Remove upper triangle
+  myDF <- myDF[,-1]  # Remove first column
+  mean(as.numeric(unlist(myDF)), na.rm = TRUE)  # Calculate mean
+}
+
+# Calculate mean ANI for ST213 and ST222
+ani213Mean <- meanANI('ani-mummer213.txt')  # 99.92058
+ani222Mean <- meanANI('ani-mummer222.txt')  # 99.91591
+
+########################
+#    INTER - ANI       #
+########################
+
+# Read and clean the pairwise ANI file
+allANI <- read.csv(here::here('02_Manuscript/inputFiles', 'supplementalTable4ANI-All.csv'),
+                   header = TRUE, stringsAsFactors = FALSE)
+
+## Data wrangling - remove upper matrix include 100 diagnol
+allANI[upper.tri(allANI)] <-NA
+
+## Remove clonal isolates and non 213/222 isolates,
+## this removal is completed in two steps by row and column 
+allANIReduced <- subset(allANI,
+                        select=-c(C166.O_OH.2013.OC.ST1742,
+                                  C184.S_IN.2006.CS.ST289,
+                                  C185.S_NY.2006.CS.ST289, 
+                                  C198.S_CT.2005.CS.ST276, 
+                                  C214.S_NY.2015.CS.ST289,  
+                                  C241.S_OH.2019.CS.STUNK,
+                                  C291.O_OH.2013.OC.ST222,
+                                  C365.S_MN.2014.CS.ST227, 
+                                  C366.S_MN.2016.CS.ST227, 
+                                  C367.S_IN.2016.CS.ST289, 
+                                  E155.O_OH.2013.OE.ST222, 
+                                  E156.O_OH.2013.OE.ST222,
+                                  E157.O_OH.2013.OE.ST222,	
+                                  E159.O_OH.2013.OE.ST222,
+                                  E160.O_OH.2013.OE.ST222, 
+                                  E161.O_MI.2010.OE.ST222,
+                                  E162.O_MI.2010.OE.ST222,
+                                  E163.O_MI.2010.OE.ST222, 
+                                  E164.O_MI.2010.OE.ST222,
+                                  E166.O_VT.2002.OE.ST222,
+                                  E167.O_MD.2009.OE.ST222,
+                                  E168.O_MD.2009.OE.ST222,
+                                  E169.O_MD.2009.OE.ST222, 
+                                  E170.O_MD.2009.OE.ST222,
+                                  E171.O_MD.2009.OE.ST222,
+                                  E174.O_OH.2013.OE.ST222))	
+
+## Step two in removing certain isolates (clonal or non-ST213/222)
+allANI <- allANIReduced[!(allANIReduced$X == "C166-O_OH-2013-OC-ST1742" | 
+                             allANIReduced$X == "C184-S_IN-2006-CS-ST289" |
+                             allANIReduced$X == "C185-S_NY-2006-CS-ST289" |
+                             allANIReduced$X == "C198-S_CT-2005-CS-ST276" |
+                             allANIReduced$X == "C214-S_NY-2015-CS-ST289" |
+                             allANIReduced$X == "C241-S_OH-2019-CS-STUNK" | 
+                             allANIReduced$X == "C291-O_OH-2013-OC-ST222" |
+                             allANIReduced$X == "C365-S_MN-2014-CS-ST227" |
+                             allANIReduced$X == "C366-S_MN-2016-CS-ST227" |
+                             allANIReduced$X == "C367-S_IN-2016-CS-ST289" |
+                             allANIReduced$X == "E155-O_OH-2013-OE-ST222" |
+                             allANIReduced$X == "E156-O_OH-2013-OE-ST222" |
+                             allANIReduced$X == "E157-O_OH-2013-OE-ST222" |
+                             allANIReduced$X == "E159-O_OH-2013-OE-ST222" |
+                             allANIReduced$X == "E160-O_OH-2013-OE-ST222" |
+                             allANIReduced$X == "E161-O_MI-2010-OE-ST222" |
+                             allANIReduced$X == "E162-O_MI-2010-OE-ST222" |
+                             allANIReduced$X == "E163-O_MI-2010-OE-ST222" |
+                             allANIReduced$X == "E164-O_MI-2010-OE-ST222" |
+                             allANIReduced$X == "E166-O_VT-2002-OE-ST222" |
+                             allANIReduced$X == "E167-O_MD-2009-OE-ST222" |
+                             allANIReduced$X == "E168-O_MD-2009-OE-ST222" |
+                             allANIReduced$X == "E169-O_MD-2009-OE-ST222" |
+                             allANIReduced$X == "E170-O_MD-2009-OE-ST222" |
+                             allANIReduced$X == "E171-O_MD-2009-OE-ST222" |
+                             allANIReduced$X == "E174-O_OH-2013-OE-ST222"),]
+
+## Name replacement as a dataframe part 1
+old_member_type <- c("C232-S_OH-2018-CS-STUNK", "C234-S_WI-2018-CS-STUNK",
+                     "C236-S_IN-2019-CS-STUNK", "C239-S_OH-2019-CS-STUNK",
+                     "C241-S_OH-2019-CS-STUNK", "C245-S_OH-2019-CS-STUNK",
+                     "C346-S_IN-2017-CS-STUNK", "C347-S_MN-2018-CS-STUNK",  
+                     "C348-S_MN-2019-CS-STUNK", "C349-S_MI-2018-CS-STUNK",
+                     "C350-S_MI-2019-CS-STUNK", "C351-S_MI-2019-CS-STUNK",
+                     "C352-S_MI-2019-CS-STUNK", "C353-S_MI-2019-CS-STUNK",
+                     "C354-S_NY-2018-CS-STUNK", "C355-S_NY-2018-CS-STUNK", 
+                     "C356-S_NY-2018-CS-STUNK", "C357-S_NY-2018-CS-STUNK",   
+                     "C358-S_NY-2018-CS-STUNK", "C359-S_MN-2019-CS-STUNK", 
+                     "C360-S_MN-2019-CS-STUNK", "C361-S_MN-2019-CS-STUNK",
+                     "C362-S_MN-2019-CS-STUNK", "C363-S_MN-2019-CS-STUNK", 
+                     "C364-S_MN-2019-CS-STUNK", "U1-U_MA-UNK-UNK-STUNK",     
+                     "U11-U_NY-Unknown-UNK-STUNK", "U3-U_MA-UNK-UNK-STUNK", 
+                     "U4-U_MA-UNK-UNK-STUNK", "U5-U_MA-UNK-UNK-STUNK",     
+                     "U6-U_MA-UNK-UNK-STUNK", "U12-U_NY-Unknown-UNK-ST2517")
+
+## Name replacement as a dataframe part 2
+new_member_type <- c("C232-S_OH-2018-CS-ST213", "C234-S_WI-2018-CS-ST213",
+                     "C236-S_IN-2019-CS-ST213", "C239-S_OH-2019-CS-ST213",
+                     "C241-S_OH-2019-CS-ST213", "C245-S_OH-2019-CS-ST213",
+                     "C346-S_IN-2017-CS-ST213", "C347-S_MN-2018-CS-ST213",   
+                     "C348-S_MN-2019-CS-ST213", "C349-S_MI-2018-CS-ST213",
+                     "C350-S_MI-2019-CS-ST213", "C351-S_MI-2019-CS-ST213",
+                     "C352-S_MI-2019-CS-ST213", "C353-S_MI-2019-CS-ST213",
+                     "C354-S_NY-2018-CS-ST213", "C355-S_NY-2018-CS-ST213", 
+                     "C356-S_NY-2018-CS-ST213", "C357-S_NY-2018-CS-ST213" ,  
+                     "C358-S_NY-2018-CS-ST213", "C359-S_MN-2019-CS-ST213", 
+                     "C360-S_MN-2019-CS-ST213", "C361-S_MN-2019-CS-ST213",
+                     "C362-S_MN-2019-CS-ST213", "C363-S_MN-2019-CS-ST213", 
+                     "C364-S_MN-2019-CS-ST213", "U1-U_MA-UNK-UNK-ST222",     
+                     "U11-U_NY-Unknown-UNK-ST213", "U3-U_MA-UNK-UNK-ST213", 
+                     "U4-U_MA-UNK-UNK-ST222", "U5-U_MA-UNK-UNK-ST222",     
+                     "U6-U_MA-UNK-UNK-ST222", "U12-U_NY-Unknown-UNK-ST213")
+
+replacement_table <- data.frame(old_member_type, new_member_type)
+member_types <- allANI[,'X']
+row_count <- nrow(replacement_table)
+
+## Loop through and use the replacement table infromation to change names
+for (i in 1:row_count) {
+  search_keyword <- replacement_table[i,1]
+  replace_keyword <- replacement_table[i,2]
+  
+  member_types <- sapply(member_types, function(x){
+    x[x==search_keyword] <- replace_keyword
+    return(x)
+  })
+}
+
+## Final steps to convert for both column and row names
+## to match
+allANI[,'X'] <- member_types
+update <- allANI$X
+colnames(allANI) <- update
+
+colnames(allANI) <- c("X", colnames(allANI)[2:ncol(allANI) -1])
+
+## Convert to long format, done for visual data checking
+m1 <- reshape2::melt(allANI, variable.name = "Y")
+
+## Now in fourth & fifth column strip names 
+## to be ST values for visual sorting
+m2 <- m1 %>%
+  dplyr::mutate(colX_ST = str_extract(X, "[^-]+$")) %>%
+  dplyr::mutate(colY_ST = str_extract(Y, "[^-]+$")) 
+
+## Sort largest to smallest (descending) on ani value
+## and on colX_ST and colY_ST
+m3 <- m2[order(-m2$value),]
+
+## Get the minimum and maximum ani value between ST213 and ST222
+
+# 99.87
+allANIMax <- m3 %>%
+  dplyr::filter(colX_ST == "ST213", colY_ST == "ST222") %>%
+  arrange(-value)
+allANIMax <- max(allANIMax$value, na.rm = T)
+
+# 99.5043 (C196.S_MI.2016.CS.ST222 vs C234-S_WI-2018-CS-213)
+allANIMin <- min(as.numeric(unlist(allANI)), na.rm=T) 
+
+```
+
+```{r, ST1 Meta, echo = FALSE, warning = FALSE, message = FALSE}
+
+########################
+#     ST1 META        #
+########################
+
+# Define file path for ST1 metadata
+metadata_file_st1 <- here::here('02_Manuscript/inputFiles', 'supplementalTable3MetaData-ST1.csv')
+
+# Read and clean ST1 metadata using provided function
+isoBioFull <- read_and_clean_metadata(metadata_file_st1, filter_accessions = FALSE)
+
+total_ST1 <- isoBioFull %>% tally()
+
+## Count st1 by sample set (state or cdc)
+sampleSet1 <- isoBioFull %>%
+  dplyr::group_by(sampleSet) %>%          
+  dplyr::summarize(count = n())
+
+# Get the case counts by year for ST1
+isoBioFullCount <- isoBioFull %>%
+  dplyr::group_by(Year) %>%
+  dplyr::summarize(caseCount = n(), .groups = 'drop')
+
+```
+
+```{r, ST1 Rate, echo = FALSE, warning = FALSE, message = FALSE}
+
+########################
+#     ST1 RATE        #
+########################
+
+## Convert Year to numeric for consistency
+isoBioFullCount$Year <- as.numeric(isoBioFullCount$Year)
+
+## Remove years with zero cases: Based on your description,
+years_with_zero_cases <- c(1996:1998)
+
+isoBioFullCount <- isoBioFullCount %>%
+  dplyr::filter(!(Year %in% years_with_zero_cases))
+
+## Add years with zero cases and calculate their rates
+zero_case_data <- data.frame(
+  Year = c(1996:1998),
+  caseCount = c(rep(5/3, 3))
+)
+
+## Combine and sort data
+isoBioFullCount <- dplyr::bind_rows(isoBioFullCount, zero_case_data) %>%
+  dplyr::arrange(Year)
+
+## Take the log of caseCount
+isoBioFullCount <- isoBioFullCount %>%
+  dplyr::mutate(log_caseCount = log(caseCount))
+
+## Generate a linear model to estimate slope and intercept for log values
+lModel <- lm(log_caseCount ~ Year, data = isoBioFullCount[1:29,])
+
+## Store summary information
+st1Mod <- summary(lModel)
+
+```
+
+```{r, st1_ANI, echo = FALSE, warning = FALSE, message = FALSE}
+########################
+#    INTRA - ANI       #
+########################
+
+# Define a function to calculate mean ANI from a file
+meanANI <- function(filepath) {
+  myDF <- read.csv(filepath, header = TRUE, stringsAsFactors = FALSE, sep = "\t")
+  
+  # Remove upper triangle and the first column
+  myDF[upper.tri(myDF)] <- NA
+  myDF <- myDF[, -1]
+  
+  # Compute the mean of the matrix
+  mean(as.numeric(unlist(myDF)), na.rm = TRUE)
+}
+
+# File path to the ANI file
+file_path <- here::here('02_Manuscript/inputFiles', 'ani-mummer1.txt')
+
+# Calculate mean ANI
+ani1Mean <- meanANI(file_path)  # Expected value: 99.82
+
+# Print the result
+#print(ani1Mean)
+```
+
+```{r, ST222vs1 Rate, echo = FALSE, warning = FALSE, message = FALSE}
+
+########################
+#     ST222 VS ST1     #
+########################
+## Compare regression coefficients across two groups (ST222/213 and ST1)
+
+# Prepare data for ST222
+st222Com <- isoCount[1:29,] %>%
+  dplyr::mutate(ST = "ST222") 
+
+# Prepare data for ST1
+st1Com <- isoBioFullCount[1:29,] %>%
+  dplyr::mutate(ST = "ST1")
+
+# Combine the datasets
+combinedData <- dplyr::bind_rows(st222Com, st1Com)
+
+combinedData$ST <- as.factor(combinedData$ST)
+combinedData$ST <- droplevels(combinedData$ST)
+combinedData <- combinedData[, !names(combinedData) %in% c('year')]
+
+# Fit the linear model
+model <- lm(log_caseCount ~ Year * ST, data = combinedData)
+
+# Run ANOVA and store output
+anovaResults <- anova(model)
+
+```
+
+```{r, st222_213_Fisher, echo = FALSE, warning = FALSE}
+
+## Filter and count sporadics for ST222 and ST213
+isFTCount <- isoLoc %>%
+  dplyr::filter(Year != 'Unknown', Source != 'Environmental',
+                elGatoSTCalls %in% c("213", "222")) %>%
+  dplyr::distinct(Year, State, elGatoSTCalls, Type, isolateAccession) %>%
+  dplyr::count(elGatoSTCalls, Type)
+
+## Five ST222 counts, we have data for four. The only one missing is from Oregon
+dat <- data.frame(
+  "Outbreak" = c((isFTCount[3,3]+1), 0),
+  "Sporadic" = c(isFTCount[4,3], isFTCount[1,3]),
+  row.names = c("ST222", "ST213"),
+  stringsAsFactors = FALSE
+)
+
+ftTest <- fisher.test(dat)
+
+```
+
+```{r, st222Plasmids, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Function to summarize plasmid data by sequence type
+plasSum <- function(df, st) {
+  
+  # Check for the presence of required plasmid columns
+  plasmid_cols <- grep('plasmid', names(df), value = TRUE)
+  ff102_col <- grep('FFI102', names(df), value = TRUE)
+  
+  if (length(plasmid_cols) > 0 && length(ff102_col) > 0) {
+    
+    # Count total isolates for the specified sequence type
+    isoTot <- df %>%
+      filter(elGatoSTCalls == st) %>%
+      summarise(totalIsolate = n())
+    
+    # Count isolates with no plasmids
+    no_plasmid_count <- df %>%
+      filter(elGatoSTCalls == st) %>%
+      # Select only the plasmid columns
+      select(all_of(plasmid_cols)) %>%
+      # Check if all plasmid columns are 0
+      rowwise() %>%
+      mutate(no_plasmids = all(c_across(everything()) == 0)) %>%
+      ungroup() %>%
+      summarise(noPlasCount = sum(no_plasmids, na.rm = TRUE))
+    
+    # Return a data frame with totals
+    result <- data.frame(
+      TotalIsolates = isoTot$totalIsolate,
+      NoPlasmidCount = no_plasmid_count$noPlasCount
+    )
+    return(result)
+    
+  } else {
+    warning('Unexpected number of plasmid columns or missing FFI102 column.')
+    return(NULL)
+  }
+}
+
+# Output from plasSum function for each sequence type
+plas213 <- plasSum(isoLoc, 213)
+plas222 <- plasSum(isoLoc, 222)
+plas289 <- plasSum(isoLoc, 289)
+
+# Function to count pLP Lens plasmid occurrences by sequence type
+plpCount <- function(df, st) {
+  df %>%
+    filter(elGatoSTCalls == st) %>%
+    mutate(LensPlasmid = as.numeric(Legionella.pneumophila.str..Lens.plasmid.pLPL)) %>%
+    summarise(pLensCount = sum(LensPlasmid, na.rm = TRUE)) %>%
+    pull(pLensCount)
+}
+
+# Count of pLP Lens plasmid occurrences by sequence type
+pLensTotal213 <- plpCount(isoLoc, 213)
+pLensTotal222 <- plpCount(isoLoc, 222)
+pLensTotal289 <- plpCount(isoLoc, 289)
+
+# Count the number of LS plasmids by sequence type
+countLS <- isoLoc %>%
+  group_by(elGatoSTCalls, Legionella.sainthelensi.LA01.117.plasmid.pLA01.117_150k) %>%
+  summarise(countLS = n(), .groups = 'drop')
+
+# Print results for checking
+#print(list(plas213 = plas213, plas222 = plas222, plas289 = plas289))
+#print(list(pLensTotal213 = pLensTotal213, pLensTotal222 = pLensTotal222, pLensTotal289 = pLensTotal289))
+#print(countLS)
+```
+
+```{r, st222Cas, echo = FALSE, warning = FALSE, message = FALSE}
+
+## Function to determine counts on various CRISPR systems
+cCount <- function(df, st){
+  df %>%
+    filter(elGatoSTCalls == st) %>%
+    summarise(casCount = n())
+}
+
+## Max counts for ST222 and ST213
+cas222Max <- cCount(isoLoc, 222) %>%
+  pull(casCount)
+
+cas213Max <- cCount(isoLoc, 213) %>%
+  pull(casCount)
+
+## Function to get total number of isolates parsed by ST that do not have a cas system
+casSum <- function(df, st) {
+  cas_columns <- df %>% select(starts_with("CAS")) %>% names()
+  
+  if(length(cas_columns) > 0) {
+    totalIsolates <- df %>%
+      filter(elGatoSTCalls == st) %>%
+      summarise(totalIsolate = n())
+    
+    no_cas_count <- df %>%
+      filter(elGatoSTCalls == st) %>%
+      select(all_of(cas_columns)) %>%
+      rowwise() %>%
+      mutate(no_cas = all(c_across(everything()) == 0)) %>%
+      ungroup() %>%
+      summarise(noPlasCount = sum(no_cas, na.rm = TRUE))
+    
+    data.frame(TotalIsolates = totalIsolates$totalIsolate, NoCasCount = no_cas_count$noPlasCount)
+  } else {
+    warning('No CRISPR columns found.')
+    return(NULL)
+  }
+}
+
+cas222Zero <- casSum(isoLoc, 222)
+cas213Zero <- casSum(isoLoc, 213)
+
+## Count number of isolates with TYPE I-C cas system
+typeIC222 <- isoLoc %>%
+  filter(elGatoSTCalls == 222, CAS.TypeIC %in% c(1, 2)) %>%
+  summarise(type1c = n())
+
+## Count isolates with more than one CRISPR-Cas type
+moreThan <- isoLoc %>%
+  filter(!elGatoSTCalls %in% c(1742, 227, 276, 289, 'NF')) %>%
+  mutate(across(starts_with("CAS"), as.numeric)) %>%
+  mutate(Total = rowSums(select(., starts_with("CAS")), na.rm = TRUE)) %>%
+  group_by(elGatoSTCalls) %>%
+  summarise(counts = sum(Total >= 2, na.rm = TRUE))
+
+## Count isolates with more than one unique CRISPR-Cas system (TYPE IC and IIB)
+mostTwo <- isoLoc %>%
+  filter(!elGatoSTCalls %in% c(1742, 227, 276)) %>%
+  mutate(across(starts_with("CAS"), as.numeric)) %>%
+  filter(CAS.TypeIC != 2) %>%
+  mutate(Total = rowSums(select(., CAS.TypeIC, CAS.TypeIIB), na.rm = TRUE)) %>%
+  group_by(elGatoSTCalls) %>%
+  summarise(counts = sum(Total > 1, na.rm = TRUE))
+
+mostTwo <- as.data.frame(mostTwo)
+
+## Get spacer statistics
+spacerCount <- isoLoc %>%
+  pull(numOfSpacers.IA.IC.IF.IIB.) %>%
+  str_split_fixed("-", 3) %>%
+  as.data.frame() %>%
+  mutate(across(everything(), as.numeric))
+
+minSpace <- min(spacerCount$V2, na.rm = TRUE)
+maxSpace <- max(spacerCount$V2, na.rm = TRUE)
+
+## Get mode for spacer counts
+mode <- function(x) {
+  uniq_x <- unique(x)
+  uniq_x[which.max(tabulate(match(x, uniq_x)))]
+}
+
+spacerMode <- apply(spacerCount, 2, mode)
+
+## Count ST213 with TYPE IF systems
+typeIF213 <- isoLoc %>%
+  filter(elGatoSTCalls == 213, CAS.TypeIF == 1) %>%
+  summarise(count = n())
+
+## Count ST213 with TYPE IF systems from MN and 2019
+typeIF213MN <- isoLoc %>%
+  filter(elGatoSTCalls == 213, CAS.TypeIF == 1, State == 'MN', Year == 2019) %>%
+  summarise(count = n())
+
+## Count TYPE IA CRISPR systems parsed by ST
+typeIA <- isoLoc %>%
+  filter(CAS.TypeIA == 1) %>%
+  group_by(elGatoSTCalls) %>%
+  summarise(count = n())
+
+## Total CRISPR systems parsed by all STs
+totCC <- isoLoc %>%
+  filter(across(starts_with("CAS"), ~ . >= 1)) %>%
+  group_by(elGatoSTCalls) %>%
+  summarise(count = n())
+
+## Count isolates with TYPE IF CRISPR-Cas system and pLPL plasmid
+casWitPLP <- isoLoc %>%
+  filter(CAS.TypeIF == 1, Legionella.pneumophila.str..Lens.plasmid.pLPL == 1) %>%
+  summarise(n = n())
+```
+
+\section{INTRODUCTION}
+
+  Bacteria in the genus *Legionella* can cause severe pneumonia, called Legionnaires’ disease (LD). *Legionella* multiplies in manufactured water systems when favorable conditions exist, such as low disinfectant levels or tepid water temperatures. Approximately one-third of *Legionella* species is associated with clinical disease, and ~90% of reported LD cases are due to a single species: *Legionella pneumophila* [@fang_disease_1989; @yu_distribution_2002]. Within *L. pneumophila*, several thousand genetic sequence types (ST), defined by combining allele numbers for seven specific loci into an allelic profile, are considered a proxy for genetic lineage [@gaia_sequence-based_2003; @gaia_consensus_2005; @ratzow_addition_2007; @luck_typing_2013]. STs are assigned based on the European Society of Clinical Microbiology and Infectious Diseases Study Group for *Legionella* Infections (ESGLI) sequence-based typing (SBT) database. The U.S. Centers for Disease Control and Prevention (CDC) and the European Centre for Disease Prevention and Control (ECDC) reported an increasing incidence of LD over the past two decades [@barskey_legionnaires_2022; @european_centre_2022], with the causative STs remaining consistent over time. 
+
+  LD cases can occur as part of an outbreak, related to other cases in space and time, or as sporadic events with no known link to other cases; the U.S. CDC defines a *Legionella* outbreak as two or more cases with exposure to the same source within 12 months [@smith_surveillance_2007; @cdcp_2021]. Worldwide, five *L. pneumophila* STs (ST1, ST23, ST37, ST47, and ST62) cause almost half of sporadic LD cases [@david_multiple_2016], and these are also frequently identified in outbreaks [@rota_legionnaires_2005; @ginevra_lorraine_2008; @cazalet_multigenome_2008; @harrison_distribution_2009; @vanaclocha_preliminary_2012; @kozak-muiznieks_prevalence_2014; @sanchez-buso_geographical_2015; @levesque_molecular_2016; @ricci_genome_2022]. In a retrospective review, Kozak-Muiznieks et al. [-@kozak-muiznieks_prevalence_2014] described the five most common STs in the U.S. associated with both outbreaks and sporadic cases between 1982 and 2012 (ST1, ST35, ST36, ST37, and ST222). Thus, the most prevalent disease-causing STs in the U.S. differ from those most often associated with the disease globally. 
+Kozak et al. [-@kozak_distribution_2009] first noted the prevalence of ST213 and ST222 among U.S. clinical isolates and the restriction of their geographic distribution to the Northeast U.S. in 2009. In 2010, Tijet et al. [-@tijet_new_2010] described the genetic clade of ST213 and ST222 as a recently emerged sequence type of interest for southern Ontario, Canada. ST213 and ST222 are assumed to be descended from the same founding genotype [@kozak_distribution_2009] as single-locus ST variants. Among the seven SBT loci, these two STs differ by only four non-synonymous nucleotide changes in *neuA*, resulting in two amino acid changes with a predicted neutral effect (Supplemental Table 1). Both STs are clinically significant and have been the source of sporadic disease, while to date, only ST222 has been associated with LD outbreaks in the U.S. and Canada [@kozak-muiznieks_prevalence_2014; @gilmour_molecular_2007; @quinn_legionnaires_2015; @knox_unusual_2017]. Notably, the retrospective analysis in Kozak-Muiznieks et al. [-@kozak-muiznieks_prevalence_2014] identified ST222 as the causative ST for a U.S.-related outbreak in 2002 in Vermont, 3 years before the 2005 Canadian outbreak in Scarborough, Ontario that was most likely the first ST222 LD outbreak identified in Canada [@quinn_legionnaires_2015]. 
+
+  The current study summarizes ST213 and ST222 case trends in the U.S. between `r as.numeric(year_range[1])` and `r as.numeric(year_range[2])` based on isolates and sequences submitted to the CDC, including a timeline for their emergence, and spread. We also analyzed their genomes to classify these STs phylogenetically. We examined genomic variation, including plasmids, CRISPR-Cas elements, and structural differences, as a possible basis for the increased detection of these STs. Despite identifying no obvious genetic factor associated with the observed increased prevalence, we demonstrate the increased identification of these STs within the U.S. among LD cases and their expanded geographical distribution. 
+
+\newpage
+\section{RESULTS}
+
+*Increased frequency of ST213/ST222 clinical isolates in the U.S. submitted to the CDC during the past 28 years*
+
+  The first documented occurrence of LD in the U.S. due to ST213 occurred in 1992 in Ohio, while Pennsylvania had the first U.S. ST222-associated case in 1998 [-@kozak-muiznieks_prevalence_2014\; Figure 1a and Supplemental Table 2]. This timeline is consistent with the emergence of these STs in Ontario, Canada in the 1990s [@tijet_new_2010]. The frequency of LD due to ST213/222 remained relatively flat in the U.S. until a slight increase from baseline occurred in 2005 and 2006, followed by a spike in `r yearCount[18,1]` (n = `r yearCount[18,2]` cases) and subsequent steady growth from 2014 through 2019 with `r yearCount[24,2]` cases in `r yearCount[24,1]` (Figure 1a). Overall, cases of LD were low in 2020 and 2021, likely due to factors related to the COVID-19 pandemic. Using linear regression to investigate the relationship between ST213/222 case count and year, we observed a significant relationship between these two variables (*p* = `r format.pval(st222Mod$coefficients[2,4], digits = 2)`), with an average increase of `r round(st222Mod$coefficients[2,1], digits = 2)` cases per year observed between `r year_range[1]` and `r year_range[2]` (Figure 1a) and provide the projected case rate through 2030. We also ran a linear regression for the same two variables (case count and year) for the historically most prevalent ST worldwide, ST1 [@harrison_distribution_2009] using ST1 data from the CDC *Legionella* collection (Supplemental Table 3). While there is a significant relationship between the variables (*p* =  `r format.pval(st1Mod$coefficients[2,4], digits = 2)`), the regression coefficient indicates that the annual rate of ST1 increased by only `r round(st1Mod$coefficients[2,1], digits = 2)` cases per year on average (Figure 1b) during the same time and for isolates identified in the U.S. Using an ANOVA, we compared the slopes of the frequency trends for the ST213/222 vs ST1 and found that they were significantly different  (*p* = `r format.pval(anovaResults$"Pr(>F)"[3], digits = 3)`). 
+
+  ST213 and ST222 cases spread throughout the Northeastern and Midwestern U.S. from their initial occurrence in Ohio and Pennsylvania, respectively. By 2021, they were identified as far south as Missouri and west as Oregon (Fig 1c). The overall greatest concentration of cases attributed to ST213/222 occurred in 4 states: `r isoOrigin[1,1]` (`r round(isoOrigin[1,2]/totalOrg,2)*100`%), `r isoOrigin[2,1]` (`r round(isoOrigin[2,2]/totalOrg,2)*100`%), `r isoOrigin[3,1]` (`r round(isoOrigin[3,2]/totalOrg,2)*100`%), and `r isoOrigin[4,1]` (`r round(isoOrigin[4,2]/totalOrg,2)*100`%). The total number of ST213/222 isolates from sporadic cases submitted to CDC (n = `r sum(jst213222Spor$n)`) for the entire timeline examined here (1992 – 2020) resulted in an essentially equivalent percent associated with either ST: ST213  (`r round(jst213222Spor[1,3]/(sum(jst213222Spor$n)), digits = 2)*100`%, n = `r jst213222Spor[1,3]`) and ST222 (`r round(jst213222Spor[2,3]/(sum(jst213222Spor$n)), digits = 2)*100`%, n = `r jst213222Spor[2,3]`). However, in 2019, a higher percentage of ST213 was documented as sporadic cases (`r round(yearSporadic[1,4]/(sum(yearSporadic$n)), 2)*100`%, n = `r yearSporadic[1,4]`) than ST222 (`r round(yearSporadic[2,4]/(sum(yearSporadic$n)), 2)*100`%, n = `r yearSporadic[2,4]`). Over time, ST222 has been increasingly implicated as the causative ST in LD outbreaks in the U.S. [@levesque_molecular_2016], and in total, ST222 was responsible for five documented outbreaks from 1992 – 2021. We include ST222 isolates from four outbreaks in this study, excluding the 2021 ST222 outbreak in Oregon because whole-genome sequence data are unavailable for that outbreak. Interestingly, only two of the four states with the highest occurrence of ST213/222 had a documented outbreak due to ST222 (MI in 2010 and OH in 2013). No known LD outbreaks were associated with ST213 during the same period (1992 – 2021; Supplemental Table 2). 
+
+  LD cases associated with ST213 and ST222 within the U.S. have occurred for at least ~30 years. However, we found no apparent association with geography (state or region) or time for the spread of these STs (Figure 1a). Nor do geography and time explain the prevalence of ST222 in clinical outbreak cases of LD or the increased rate of ST213/ST222. In other words, there is no pattern of increased cases identified in a single state, by region, or over specific years, just a general increase over time. The outbreaks also showed no temporal pattern, as the first outbreak was in 2002, followed by an outbreak in 2005, then 2013, 2019, and 2021 (Supplemental Table 2). The ST222 outbreak cases occurred in five states as far east as Maine and as far west as Oregon. A Fisher’ s exact test between the two STs parsed on all unique outbreak, and sporadic isolates through 2021 indicate a trend (*p* = `r round(ftTest$p.value, digits = 3)`) for ST222. Thus, ST222 was more likely associated with outbreaks than ST213, as ST213 was not associated with an outbreak during this same time frame. 
+
+*High average nucleotide similarity between ST213 and ST222*
+
+  While it is unclear which ST is the true founder of the ST213/222 clonal complex, ST213 serves as a hub to which at least six other single-locus variants (SLV) connect, including ST222 (Figure 2a). Two complex members (ST1742 and ST2497) are double-locus variants of ST213 but SLVs of ST222 (Figure 2a). At the same time, ST276 and ST2519 are double-locus variants of ST213 with a more distant relation with ST222 (Figure 2a). There is no documentation of any STs in this clonal complex in the U.S. before 1992. To confirm that ST213 and ST222, while distinct STs, are more closely related to each other than other STs, we built a single nucleotide polymorphism (SNP) phylogeny using the core alignment generated by SNIPPY from the top 10 STs associated with clinical cases from the CDC *Legionella* database. After removing recombination, the phylogeny demonstrates that ST213 and ST222 form a monophyletic clade (Figure 2b). 
+
+  We see a distinct split between ST213 and ST222 when we generate *de novo* assembled genomes and use the subsequent average nucleotideidentity- (ANI) derived distance metric, to create a phylogeny that includes all isolates examined here (n = `r totST[1,1]`, Figure 3). Additionally, the relationships among the single- or double-locus variants in the average nucleotide identity phylogeny are consistent with those displayed in the clonal complex analysis and the SNP phylogeny (Figure 2). For example, C166-O is a single-locus variant of ST222 identified as ST1742 and groups accordingly in the clonal complex analysis (Figure 2a) and in the ANI phylogeny (Figure 3). At the same time, C214-S and C184-S are single-locus variants of ST213 identified as ST289, and these isolates group together in the clonal complex analysis and the ANI phylogeny (Figures 2a and 3). Despite a relatively high degree of similarity the variable branch lengths between the STs indicate a range of genetic variation exists both within and between the STs (Figure 3). One potential clade of interest consists of ST289 (Figure 3), which contains four isolates and appears to be on a distinct evolutionary trajectory from ST213. All cases attributed to ST289 are sporadic, and the first reported clinical case occurred in 2006. At the same time, ST227, with two isolates, is a single-locus variant of ST213; yet these two isolates are not monophyletic. Furthermore, ST276 appears on a long branch (Figure 3) suggesting under-sampling of this ST’s genetic diversity [@wiens_can_2005; @wiens_highly_2012].  
+
+  Despite the minor genetic variation described above, one of the more striking features of the ST213/ST222 clade is the genetic similarity within and between these STs. Pairwise ANI comparisons revealed that between ST213 and ST222 isolates, the lowest ANI value was `r round(allANIMin, 2)`%, and the highest ANI value was `r round(allANIMax, 3)`%. In contrast, there was an average ANI of `r round(ani222Mean, digits = 2)`% for both ST213 and ST222 when isolates of the same ST were compared to one another (Supplemental Table 4), while the within average ANI for ST1 isolates (Supplemental Table 3) was `r round(ani1Mean, digits = 2)`% (Supplemental Table 5). 
+
+*Additional genomic elements do not differentiate between ST222 and ST213*
+
+  Plasmids were identified in nearly half of ST213 isolates (`r plas213[1,1] - plas213[1,2]`/`r  plas213[1,1]`), while only `r  plas222[1,1] - plas222[1,2]` out of `r plas222[1,1]` ST222 isolates contained any plasmid. Five different plasmids were identified in the ST213/ST222 clonal complex isolates (Figure 3; Lens plasmid pLPL, C9_S plasmid unamed2, FFI102, pLELO, and *Legionella sainthelensi* LA01-117 plasmid pLA01-117_150k). The Lens plasmid (pLPL), the most prevalent plasmid, occurred `r (pLensTotal213 + pLensTotal222 + pLensTotal289)` times independent of ST. We identified the Lens plasmid (pLPL) in ST213  (n = `r pLensTotal213`/`r plas213[1,1]`), ST222 (n = `r pLensTotal222`/`r plas222[1,1]`), and ST289 (n = `r pLensTotal289` out of `r  plas289[1,1]`) isolates. Interestingly, none of the outbreak-associated isolates examined here (n = `r outbreakCount[1,2]` isolates from 4 outbreaks) contain any of the plasmids described above; instead, isolates with a plasmid were either clinical, sporadic isolates, or unknown source types (Figure 3). Furthermore, we did not identify plasmids in isolates recovered from environmental samples (n = `r sourceCount[2,2]`). However, our sample size of environmental isolates was smaller than the clinical isolates (ST213: n = `r typeCount[7,3]`/`r plas213[1,1]`; ST222: n = `r typeCount[8,3]`/`r plas222[1,1]`; Figure 3). Finally, we identified a *Legionella sainthelensi* plasmid (pLA01-117_150k) in `r  paste0(as.english(as.numeric(countLS[2,3])))` ST213 isolates (Figure 3) and `r  paste0(as.english(as.numeric(countLS[7,3])))` ST289 isolate. 
+
+  Previous studies have identified CRISPR-Cas systems in the ST213/222 lineage [@dauria_legionella_2010; @rao_active_2016], and the three most prevalent are type I-C, I-F, or II-B. *Cas2*, a component of the type II-B system, is possibly required for *L. pneumophila* infection of its amoebal host, though only demonstrated in one strain of *L. pneumophila* [strain 130b\; -@gunderson_crispr-associated_2013; @gunderson_nuclease_2015]. Thus, it is hypothesized that the CRISPR-Cas system could help protect *L. pneumophila* from lytic viruses (e.g., gokushoviruses) or  to defend against a known genetic element (LME-1) that alters a pathogen's fitness [@deecker_2021_legionella]. Our analysis confirmed CRISPR-Cas among ST213 and ST222 isolates (ST213: n = `r cas213Max`/`r stCount[1,2]`; ST222: n = `r cas222Max`/`r stCount[2,2]`; Figure 3). A few clinical ST222 isolates lacked identifiable CRISPR-Cas systems (n = `r cas222Zero[1,2]`/`r cas222Zero[1,1]`; Figure 3) while we detected a CRISPR array for these isolates, each lacked an identifiable *cas* gene. The most prevalent CRISPR-Cas system identified was the type I-C system in `r cas213Max` out of `r stCount[1,2]` ST213 isolates and `r typeIC222[1,1]` out of `r stCount[2,2]` ST222 isolates. Some isolates had greater than one CRISPR-Cas type ST213: n = `r moreThan[1,2]`/`r stCount[1,2]` and ST222: n = `r moreThan[2,2]`/`r stCount[2,2]` (Supplemental Table 2), with the most common co-occurrence between CAS-type I-C and CAS-type II-B (ST213:  n = `r mostTwo[1,2]`/`r stCount[1,2]`, ST222: n = `r mostTwo[2,2]`/`r stCount[2,2]`, ST289: n = `r mostTwo[3,2]` out of `r stCount[5,2]`). Deecker and Ensminger [-@deecker_type_2020] showed that repopulation of depleted CRISPR arrays via an alternate CRISPR-Cas system could happen in organisms with co-occurring CRISPR-Cas systems. In the five ST222 isolates examined by Rao et al. [-@rao_active_2016], they observed a core set of 43 spacers along with variation in the number of spacers depending on the isolate, which is in-line with the isolates examined in this study with a mode of `r spacerMode[1]` spacers (min = `r minSpace` and max = `r maxSpace`). Interestingly, our data suggest that both vertical and horizontal transmissions have likely affected the presence of the type I-F CRISPR-Cas system. For example, we identified the presence of CRISPR-Cas type I-F in  `r  paste0(as.english(typeIF213MN[1,1]))` (of the `r  paste0(as.english(typeIF213[1,1]))`) ST213 isolates collected from Minnesota for three consecutive years. These isolates do not have an ANI value reflective of clonality (ANI ≥ 99.99). Thus, this shared CRISPR-Cas system identified in non-clonal isolates collected over time suggests vertical transmission and maintenance of this system in these isolates. Additionally, an ST222 isolate with the same CRISPR-Cas system (type I-F), collected from Minnesota in 2018, suggests a possible horizontal transfer between ST213 and ST222. However, we cannot rule out the presence of type I-F CRISPR-Cas before the divergence of ST213 and ST222 since this CRISPR-Cas type was identified in ST222 isolates collected as early as 2013 in Michigan (Figure 3). Additionally, we identified the type I-A system in `r  paste0(as.english(sum(typeIA[,2])))` isolates, one each of ST213 and ST222. 
+
+*Conserved synteny and few loci distinguish the sequence types ST213 and ST222*
+
+  Exploration of large-scale genetic similarities between ST213 and ST222 based on four representative completely closed genomes confirms the high degree of genomic content conservation and synteny (Figure 4a), as demonstrated in previous work [@gomez-valero_extensive_2011]. ST213 and ST222 isolates have three local collinear blocks (LCB) or regions of continuous shared sequence (Fig 4a). ST213 isolates have two additional LCBs, which are indels between the two STs that are less than 50 kb in total out of 3.5 mb (Figure 4b) starting at 0 mb (C177, ST213) and 3.5 mb (C217, ST213). In contrast to other work [@sanchez-buso_recombination_2014; @david_dynamics_2017], genome rearrangements appear less prevalent for the four isolates analyzed in this study (Figure 4b). For example, only a tiny region at position ~200 kb in C217 and at ~2700 kb in the other genomes is affected by rearrangement. This rearrangement generates the split between the two prominent local collinear blocks. Finally, one approximately 10 mb region located at ~200 kb in NZ_CP012019.1 (ST222) has no homologs in the three other genomes (Figure 4a). 
+
+  Further investigation of genomic differences between ST213 and ST222 found variation in the presence/absence of some genes when comparing the three individual completely closed genomes to all genes from the reference genome (NZ_CP012019, ST222). The C217 (ST213) isolate contains additional genetic material at ~ 188 kb, absent from the other genomes (C177, ST213; C175, ST222; NZ_CP012019, ST222; Figure 4b). Inference of the content of those regions occurred via Prokka [@seemann_prokka_2014] and based on the concordant proteins from the reference genome (NZ_CP012019, ST222), which was annotated using the NCBI Prokaryotic Genome Annotation Pipeline [@tatusova2016ncbi]. This region includes *CsrA* (WP_061784083.1, Supplemental Table 6), *VirB4* (WP_061784085.1, Supplemental Table 6), and seven other type IV secretion system proteins, along with two hypothetical proteins (Supplemental Table 6). *virB4* is considered the most evolutionary conserved component of the type IV secretion system [@fullner_pilus_1996; @fernandez-lopez_dynamics_2006; @wallden_microreview_2010], with a known function in pilus biogenesis, substrate transfer, and virulence [@jones_product_1994; @wallden_structure_2012]. Some regions are missing in the ST213 isolates compared to the ST222 isolates (i.e., at ~90 kb, ~3 kb in size; at ~950 kb, ~10 kb in size). These regions contain eight genes (Supplemental Table 7) identified via Prokka [@seemann_prokka_2014] and based on the concordant proteins from the reference genome (NZ_CP012019, ST222), include five hypothetical proteins, a glycosyltransferase family 4 protein, a right-handed parallel beta-helix repeat-containing protein, and a methyltransferase domain-containing protein. Of note, WP_080453446.1 is identifiable in the ST213 isolates; however, due to sequence divergence, it only aligns partly. Further examination of the hypothetical proteins using the CD-search interface available at the NCBI conserved domain database [@marchler-bauer_cd-search_2004] revealed that one hypothetical protein has a predicted tetratricopeptide repeat (TRP; see Discussion for additional details). 
+
+*Pan-genome analysis highlights genes for regional source attribution*
+
+  For all pan-genome analyses, "core genes" are found in 100% of the isolates or subgroups, while "accessory genes" are not (Supplemental Table 8). When parsing isolates by region, the Northeast region (`r regionCount[3,1]`: n = `r regionCount[3,2]`) had 2,796 core genes with 1,828 accessory genes. The Central region (`r regionCount[1,1]`: n = `r regionCount[1,2]`) had 2,736 core genes with 1,286 accessory genes. The North Central region (`r regionCount[2,1]`: n = `r regionCount[2,2]`) had 2,669 core genes with 2,315 accessory genes (Supplemental Figure 3a). The percent of core genes ranges from 54% to 68% (NE: Core = 60%, C: Core = 68%, and NC: Core = 54%), while the percent of singleton genes ranges from 10% to 18% (NE: Singleton = 15%, C: Singleton = 10%, and NC: Singleton = 18%). This genetic variation, either conserved or variable in the regional bins of interest, could serve as possible molecular targets for source attribution (Supplemental Figure 3b). To illustrate the potential discovery of genes as the number of genomes assessed increases, we generated a rarefaction curve for the regional bins. Analysis of Northeast and Central regions indicate missing genes, as both curves (core genes and total genes or the pan-genome) do not reach a plateau. This lack of plateau means adding more isolates would increase accessory and possibly alter core genes identified. In contrast, the North Central region appears to have adequate sampling for characterizing genes for this region’s core, accessory, and ultimately the pan-genome (Supplemental Figure 3c). Temporal comparisons of 5-year bins are detailed in the supplemental methods. 
+
+\section{DISCUSSION}
+
+  Here, we observed that the distribution of the ST213 and ST222 isolates in the U.S. has expanded from the states of Pennsylvania and Ohio, where they were initially detected in the 1990s, to Maine in the east, Missouri in the south, and Oregon in the west as of 2021. The North American Great Lakes region is centered around several sizeable interconnected freshwater lakes in the mid-east of North America. It includes eight U.S. states and the Canadian province of Ontario. These STs were first identified in Pennsylvania and Ohio, states in the Great Lakes region. Despite their geographic spread throughout the U.S., ST213/ST222-associated LD cases remain concentrated in Michigan, New York, Minnesota, and Ohio, all states of the Great Lakes region. However, because input data are limited to isolates available in the CDC *Legionella* collection of isolates, submitted to the CDC by public health partners or collected by the CDC, there may be a bias in geographic location investigated, as only states that submit isolates or samples will be included in these analyses. However, the CDC *Legionella* collection contains data from 48 U.S. states. 
+
+  The mechanism of the ST222 spread over 4000 km (from Pennsylvania to Oregon) in 28 years is unknown since *Legionella* is a water-born bacterium that is not transmitted from person to person [see exception\: -@correia_probable_2016]. The humid continental climate of the Great Lakes region may be favorable for these STs of *L. pneumophila*. However, ST222 isolates have also been detected in the much drier climate of Colorado since 2011 (Supplemental Table 2). Interestingly, ST222 has also expanded its geographic distribution in Canada, moving from Ontario to the cooler, drier province of Alberta, where it caused an LD outbreak in Calgary in the late fall of 2012 [@knox_unusual_2017]. The relative humidity in Calgary was above average during the fall of 2012, so the expansion of the geographic distribution of this ST could be associated with the changes in humidity. Thus, future work should evaluate the role of temperature and humidity in ST213/222 distribution. Notably, the ESGLI database lists ST213 isolates identified in the Netherlands and the Czech Republic and ST222 isolates identified in Austria, the Czech Republic, Germany, and the United Kingdom. In addition, LD associated with ST213 has been reported in Australia [@buultjens_supervised_2017]. However, there is uncertainty about the origin of ST213/ST222-associated infections detected outside of North America since patient history and travel information are relatively scarce. However, if these STs indeed spread to the freshwater systems of Europe and Australia, the mechanism of their possible intercontinental dispersion should be investigated along with genetic relatedness for isolates found internationally. 
+
+  One method for quantifying the level of relatedness between isolates is by estimating the ANI. Traditionally, ANI values greater than 95% between two isolates indicate a single species [@konstantinidis_genomic_2005]; notably, ANI values for some *L. pneumophila* subspecies are below this threshold with a 90.5%–96.4% range [@kozak-muiznieks_comparative_2018]. However, the cutoff for classification methods below species level (e.g., sequence types) depends on the organism of interest and the classification method. Here, we see high but distinct ANI values between the two STs analyzed, with the minimum ANI value of `r round(allANIMin, 2)`% and the highest ANI value of `r round(allANIMax, 2)`% between ST213 and ST222. In contrast, the average ANI values within the STs were high: `r round(ani222Mean, digits = 2)`% for ST213 and ST222, suggesting that ANI can differentiate between the two STs. When examining the ANI values for isolates collected during an outbreak (e.g., Ohio 2013 C165 and C219), the ANI value between those isolates was ≥ 99.99% (Supplemental Table 4), indicating clonality between these isolates. While ANI measures nucleotide identity in all orthologous genes shared between two genomes, it does not strictly represent core genome evolutionary relatedness because orthologous genes can vary between comparisons [@jain_high_2018] nor does it begin to address variation in accessory genes; thus, some non-conserved genetic regions may have been excluded from ANI estimates between ST213 and ST222. 
+
+  As plasmids play a role in genomic diversification, examining their number and identity may explain why ST222 has thus far been more often associated with outbreaks than ST213 or why there have been increased clinical cases due to both STs. For ST213, `r plas213[1,1] - plas213[1,2]` out of  `r stCount[1,2]` (`r round((plas213[1,1] - plas213[1,2])/(stCount[1,2]), 2)* 100`%) isolates harbored any plasmid, and for ST222,  `r plas222[1,1] - plas222[1,2]` out of `r stCount[2,2]` (`r round((plas222[1,1] - plas222[1,2])/(stCount[2,2]), 2)* 100`%) isolates harbored any plasmid. The most prevalent plasmid in ST213/222 isolates is the Lens plasmid, pLPL, which encodes a small RNA plasmid factor (*RocRp*) associated with silencing natural transformation [@durieux_diverse_2019]. An *L. pneumophila* strain (Lens) harboring this plasmid was the source of a large outbreak in northern France [@nhu_nguyen_community-wide_2006]. For the STs examined here, `r pLensTotal213` ST213 isolates out of `r stCount[1,2]` had the pLPL plasmid compared to  `r  paste0(as.integer(pLensTotal222))` out of `r stCount[2,2]` ST222 isolates. Thus, genetic exchange via horizontal gene transfer (HGT) may be limited for these STs, though further molecular characterization is required. However, identifying plasmids in multiple *Legionella* species has provided evidence supporting the possibility of inter-species gene flow [@bacigalupe_population_2017; @slow_complete_2018; @slow_extensive_2022]. For example, the plasmid pLA01-117_150k was first reported in *L. sainthelensi*, and we identified it here in *L. pneumophila* isolates (ST213, n = `r countLS[2,3]` and ST289, n = `r countLS[7,3]`). Those isolates with pLA01-117_150k do not form a monophyletic clade (Figure 3), suggesting possible intra-specific gene flow as well. Given the low frequency of plasmids in ST222 and the higher prevalence in ST213, one could speculate that these plasmids may not confer any outbreak-associated advantage. 
+
+  Another mechanism that may limit HGT is the protection CRISPR-Cas provides to restrict DNA uptake from phage or mobile genetic elements. We identified `r sum(totCC$count)` isolates with a CRISPR-Cas system (ST213: n = `r totCC[1,2]`, ST222: n = `r totCC[2,2]`, ST227: n = `r totCC[3,2]`, ST276: n = `r totCC[4,2]`, ST289: n = `r totCC[5,2]`, and ST1742: n = `r totCC[6,2]`). One set of isolates (n = `r casWitPLP`) harbored the type I-F CRISPR-Cas system and the Lens plasmid pLPL. This combination suggests this CRISPR system is likely located on the endogenous pLPL plasmid, generally considered a non-integrative plasmid [@durieux_diverse_2019; @cazalet_evidence_2004]. Additionally, we identified one isolate with the type I-F CRISPR-Cas system without the Lens plasmid pLPL (Figure 3), which suggests this CRISPR-Cas system is on the chromosome rather than located extrachromosomally [@deecker_type_2020]. Rao et al. [-@rao_active_2016] showed that type I-C *cas* genes, the most common CRISPR system in the isolates examined here (ST213:  `r cas213Max`/`r stCount[1,2]` and ST222: n = `r typeIC222[1,1]`/`r stCount[2,2]`), are upregulated during post-exponential growth and are involved with targeted acquisition of spacers generating protection against foreign elements. Identification of this CRISPR system in most of our isolates suggests a potential barrier to the uptake and spread of mobile genetic elements. Thus, the type I-C system may limit genetic variation via HGT. 
+
+  Among the three Pac-Bio genomes analyzed here (ST222: n = 1 and ST213: n = 2), we identified WP_061784204.1 as containing a hypothetical tetratricopeptide repeat domain in the ST222 isolates. TRP domains are present in numerous bacterial proteins with functions that facilitate interpreting the surrounding environment [@blatch_tetratricopeptide_1999], including proteins utilized for gene regulation, flagellar motor function, chaperone activity, and virulence [@cerveny_tetratricopeptide_2013]. *L. pneumophila* genomes encode multiple proteins with predicted tetratricopeptide repeat motifs. Newton et al. [-@newton_identification_2006] demonstrated that one such protein enhanced the uptake of *L. pneumophila* into human host cells (macrophage-like cell line, THP-1, and the type II alveolar epithelial cell line, A549), suggesting that these TRP domain-containing proteins may act as virulence factors. This hypothesis was further supported by the demonstration that proteins with the TRP domain may function as virulence factors during the aquatic and environmental *L. pneumophila* life cycle by Bandyopadhyay et al. [-@bandyopadhyay_implication_2012]. Yet, given the unknown function of WP_061784204.1 further characterization is needed to determine if it provides an advantage during infection. 
+
+  We have described an increased identification and expanded geographic range of ST213 and ST222 with accompanying genetic analysis. Our data suggest that both STs will likely persist in causing LD sporadic cases and possible outbreaks. Factors precipitating the increased identification of these STs remain unknown, with possibilities including an overall increase in LD, an increase in LD diagnosis due to more widely available and improved diagnostics and increased awareness and testing for LD, or proliferation of *L. pneumophila* related to environmental selection or competition. Furthermore, the basis for the more frequent ST222 association with outbreaks remains elusive, given that the two STs have very high ANI values, substantial genomic synteny, and many shared CRISPR-Cas systems. Future studies could evaluate the role of environmental or other genetic factors on the increase and persistence of these STs in the natural environment.
+
+\section{MATERIALS AND METHODS}
+
+  The CDC *Legionella* isolate collection consists of isolates recovered from environmental samples or clinical specimens by the CDC *Legionella* Laboratory and clinical or environmental isolates directly submitted by public health laboratories. Specimens and isolates are voluntarily submitted and may represent sporadic or outbreak-associated cases.Below is a simplified version of our methods; please see the supplemental methods in the supplemental material for additional information. 
+
+*ST213/222 isolate selection*
+  
+  The dataset comprised a total of `r totST[1,1]` isolates, which included isolates sequenced by state partners and submitted to the CDC for analysis (n = 124, Supplemental Table 2) and isolates that were part of the CDC *Legionella* collection and sequenced by the CDC *Legionella* Laboratory (n = `r sampleSetST[1,2]`, Supplemental Table 2). The ST213/222 clonal complex contains all STs sharing six out of seven loci with at least one other complex member and descended from that sequence type found in the ESGLI SBT database. This study includes any isolate for which ST has been identified and is among the following 11 STs comprising the ST213/222 clonal complex: ST213 (n = `r stCount[1,2]`), ST222 (n = `r stCount[2,2]`), ST227 (n = `r stCount[3,2]`), ST276 (n = `r stCount[4,2]`), ST289 (n = `r stCount[5,2]`), and ST1742 (n = `r stCount[6,2]`). Isolates belonging to five STs that are part of the clonal complex (ST1601, ST2497, ST2517, ST2519, and ST2728) have not been identified by CDC or state partners; thus, we do not have genomic data for these STs. Sequences were derived from isolates collected from `r as.numeric(year_range[1])` to early `r as.numeric(year_range[2])`, spanning the states from Colorado to Maine (Mountain West to Northeast; Supplemental Table 2). We excluded isolates from rate, regional, and temporal analyses if they had no corresponding collection year (n = `r noYear[1,1]`). Note, this collection is not considered routine surveillance, nor is it comprised an equal set of clinical and environmental isolates having more clinical (n = `r sourceCount[1,2]`) than environmental isolates (n = `r sourceCount[2,2]`) along with some unknown source types (n = `r sourceCount[3,2]`), included for a subset of genomic analyses.   
+
+*ST1 isolate selection*
+  
+  The dataset comprised a total of `r total_ST1[1,1]` isolates, which included isolates sequenced by state partners submitted to the CDC for analysis (n = `r sampleSet1[2,2]`, Supplemental Table 3) and isolates that were part of the CDC *Legionella* collection sequenced by the CDC *Legionella* Laboratory (n = `r sampleSet1[1,2]`). We include ST1 counts of clinically associated cases for comparison but do not include any genomic data related to ST1. In selecting ST1 isolates, we required each to have a collection year between 1992 and 2020, a clinical source type, and a documented collection within a U.S. state. 
+
+*Estimating the rate of LD per year with forecasting*
+  
+  We used a linear model to evaluate the annual rate of LD cases over time and predict the yearly future rate for ST213/222 and ST1, which excludes environmental source isolates for case counts. For years with zero ST213/222 cases (e.g., 1993 – 1995), we estimated the annual frequency by extending the range in each direction until a year with cases is included on each side (1992 – 1996) and then dividing that by the number of years in the range (i.e., number of cases: n = 2; the number of years: n = 5). The resulting annual frequency of cases was 0.4 per year, and we set this as the frequency for the entire range between 1992 and 1996. We repeated the same steps for 1998 – 2000, in that there were two cases over 3 years, resulting in a rate of 0.67 ST213/222 cases for all 3 years in the range. We employed a linear model (y = mx + b) using the log value of the rates as the predicted, dependent variable (y), with time in years as the predictor, independent variable (x). Next, we exponentiated the prediction to quantify the expected rate for the future (2021 – 2030) and estimated the uncertainty using the prediction intervals. We repeated these steps for ST1 (n = `r total_ST1[1,1]`, Supplemental Table 3). Before fitting our regression model to time series data for ST213/222 and ST1, we evaluated the residuals to confirm that our assumptions for the model had been met. From the residual diagnostics, we demonstrated an approximate center of zero for the histogram of residuals and that there were no lags outside of the 95% threshold for the autocorrelation function using the *checkresiduals()* function from the forecast package v8.17.0 [-@hyndman_automatic_2008\; Supplemental Figure 1 and Supplemental Figure 2]. 
+
+*Sequencing and genome assembly* 
+  
+  Isolates sequenced at CDC (n = `r sampleSetST[1,2]`) were extracted using the Epicentre Masterpure DNA and RNA Purification Kit (cat. No. MCD85201), per the manufacturer’s instructions and sequenced on the Illumina MiSeq. State public health partners used their routine DNA extraction and sequencing protocols and then shared sequences with the CDC (n = `r sampleSetST[2,2]`). Standard bioinformatic analyses included trimming reads via Trimmomatic v0.39 [@bolger_trimmomatic_2014] and SPAdes v3.13.0 [@prjibelski_using_2020] for *de novo* genome assembly for all isolates. 
+
+*Sequence types, clonal complex analysis, and phylogenetics*
+  
+  We determined ST bioinformatically for all isolates using the whole-genome sequencing data and the el_gato program (https://github.com/appliedbinf/el_gato). PHYLOViZ v2.0 [@nascimento_phyloviz_2017] created a minimum spanning tree of the 11 STs to visualize the ST213/222 clonal complex. To understand the relationship between ST213/222 and other STs, we produced a core single nucleotide polymorphism alignment via SNIPPY [@seemann_snippy_2015] using the NZ_CP012019.1 genome (ST222) as the reference. Next, we removed regions of recombination using Gubbins v3.0.0 [@croucher_rapid_2015]. We inferred a maximum likelihood phylogenetic tree with a general time reversible evolutionary model, a discrete gamma-distribution to estimate heterogeneity across sites (GTRGAMMA) and 100 bootstrap replicates using RAxML v8.2.12 [@stamatakis_raxml_2014]. The phylogeny was visualized and annotated in R v4.0.5 [@r_core_team_r_2021] using the ape package v5.6.2 [@paradis_ape_2019] and ggtree v3.6.2 [@yu_ggtree_2017]. In addition, we generated a distance measure for all ST213/222 isolates from all-against-all pairwise ANI values and constructed a Neighbor-Joining phylogenetic tree [@saitou_neighbor-joining_1987].
+
+*Plasmid and CRISPR-Cas system identification*
+  
+  We identified plasmids in our data using the program PIMA (https://github.com/appliedbinf/pima), which uses the RefSeq database [@oleary_reference_2016] sequences between 1,000 and 500,000 bp with “plasmid” in the description. CRISPR-Cas Finder v4.2.20 [@couvin_crisprcasfinder_2018] was used to identify CRISPR-Cas systems. 
+  
+*Gene annotation and pan-genome analysis*
+  
+  We annotated the genes using Prokka v1.14.5 [@seemann_prokka_2014], specifying a *Legionella*-specific BLAST database. We performed gene clustering and pan-genome analysis using Roary v3.11.2 [@page_roary_2015], setting the *-cd* parameter to 100, which requires genes to be present in 100% of the isolates to be considered core and we provide the presence/absence of genes for all isolates in Supplemental Table 8. Before pan-genome comparisons, we filtered to remove clonal outbreak isolates based on an ANI score of ≥ 99.99, keeping only one isolate per outbreak (Supplemental Table 2). We compared isolates recovered from 2001 through 2020 within geographic and temporal subgroups. Additional information regarding subgroups and pan-genome analyses is provided in the supplemental methods. 
+
+*Obtaining completely closed L. pneumophila genomes using Pacific Biosciences technology*
+  
+  We sequenced three isolates via Pacific Biosciences (Menlo Park, CA, U.S.): C175 (ST222), C177 (ST213), and C217 (ST213). We performed sequencing analysis using the hierarchical genome assembly process (HGAP) through SMRT Analysis version 2.3.0. To construct a completely closed *L. pneumophila* genome, we used the Pacific Biosciences HGAP3 assembler [@chin_nonhybrid_2013]. Parameters for the HGAP3 assembler included an expected genome size of 3.4 mb and 15x target genome coverage. CGView was used to compare the PacBio completed whole-genome assemblies [@stothard_circular_2005], and percent identity was based on the Toronto-20052 genome assembly (NZ_CP012019, ST222) to generate a comparative genomic map. To evaluate genomic synteny, we ran progressiveMauve [@darling_progressivemauve_2010].
+
+
+*Code Availability*
+  
+  Code for this manuscript is available at: https://github.com/jennahamlin/codeForManuscript-ST213_222.
+
+
+*Data Availability*
+  
+  Illumina data sequenced in-house or from the state partners was submitted to the NCBI Sequence Read Archive (SRA) under BioProject PRJNA861313. NCBI BioProject PRJNA931318 contains the complete, PacBio generated error-corrected genomes sequenced in this study. 
+
+
+*Material Availability*
+  
+  Isolates used in this analysis are available upon request. 
+
+\section{ACKNOWLEDGEMENTS}
+
+We thank public health professionals Colorado, Indiana, Massachusetts, Michigan, Minnesota, New York, and Ohio for collecting and processing clinical and environmental samples and generating and sharing whole genome sequences. We thank T. Johnson for generating sequences of the complete ST213 and ST222 genomes using Pacific Bioscience technology. We also thank S. S. Morrison and J.A. Caravas for their previous work on *L. pneumophila* genomes. We are grateful to the curators of the ESGLI database, especially B. Afshar, for providing data on the distribution of ST213 and ST222 isolates worldwide and assisting with allele and sequence type assignment for standard SBT runs. We thank I. Nemenman and J. L. Hite for thoughtful discussions regarding regression analyses and E. F.C. Scopel for R plotting finesse. Finally, we thank J. C. Smith, W. C. Edens, and A. L. Cohen  for thoughtful discussions on the data presented here.  
+
+*Disclaimer*
+  
+  This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors.
+
+This study is subject to several limitations. Caution is warranted in interpreting these analyses due to the inherent bias in the specimens, isolates, and sequences available for analysis. Note that the clinical cases for the input data are limited to isolates available in the CDC *Legionella* collection for which the ST has been determined, more likely underestimating the prevalence of ST1 and ST213/222 and reflecting the recent overall increase in LD.
+
+The use of trade names is for identification only. It does not constitute endorsement by the U.S. Department of Health and Human Services, the U.S. Public Health Service, or the Centers for Disease Control and Prevention. The findings and conclusions in this report are those of the authors and do not necessarily represent the official position of the Centers for Disease Control and Prevention.
+
+\newpage
+\section{FIGURE LEGENDS}
+
+**Figure 1:**  The number of LD cases over time. (A) Rate of LD attributed to ST213/222 from 1992 through 2020 with rate prediction to 2030. For context, we labeled the year that the first ST213 and ST222 clinical isolates were identified in the U.S. and Europe (ST222 only). The inset graph provides a zoomed in look at the rate of cases through 2020. (B) Rate of LD cases attributed to ST1 from 1992 through 2020 with rate prediction to 2030. Note that the first ST1 clinical isolates in the U.S. were collected in 1982 from California and Indiana, before the specified time frame (1992 – 2020). The inset provides a zoomed in look at the rate of cases through 2020. (C) The total number of cases for ST213/222 from 1992 – 2020 parsed by state. Michigan, the state with the darkest color, indicates the largest number of LD cases attributed to ST213/222 clinical isolates compared with the other states. Only a single case due to ST213/ST222 was identified for three states (Delaware, Maine, and Missouri).  
+
+**Figure 2:** Clonal complex and phylogenetic analysis. (A) All STs belonging to the ST213/222 clonal complex as determined by the ESGLI SBT database. STs in white with dashed lines indicate those not represented in the CDC *Legionella* collection and, thus, not available for inclusion in the other analyses presented here. (B) Maximum likelihood phylogeny built using RAxML after running SNIPPY to generate a core SNP alignment and Gubbins to remove recombination. The Toronto-20052 genome (NZ_CP012019, ST222) was used as the reference to infer polymorphic sites. The included STs are the 10 most prevalent clinical STs, with sequences available in the CDC *Legionella* database, where isolate selection for each ST was random (Supplemental Table 9). Additionally, we included single-locus variants of ST213 (ST289, n = 2) and ST222 (ST1742, n = 1) as they are part of the ST213/222 clonal complex but were not identified as being among the top 10 clinical STs. Each ST clade is color coded, and identifying ST labels matches the coloring of the isolates in the tree. The scale bar represents the number of nucleotide substitutions per site. Black circles on each node represent a bootstrap value of 90 or greater. 
+
+**Figure 3:** Phylogenetic tree generated from ANI derived distance values, using the neighbor-joining algorithm. iTOL was used to visualize the phylogenetic tree with rings around the phylogeny indicative of specific metadata. Metadata follows this order starting with the innermost circle: sequence type, year, region, source type, plasmids, and CRISPR-Cas system. If a plasmid or a CRISPR type was not identified in an isolate, then that region is blank. The tree scale represents ANI distance calculated as 100 – ANI%. 
+
+**Figure 4:** Whole genome alignment for three Pac-Bio genomes. (A) Mauve-generated figure of the three Pac-Bio genomes (ST222, n = 1 and ST213, n = 2) along with the Toronto-20052 genome (NZ_CP012019.1, ST222) as the reference. The order of the alignment is as follows: C177 (ST213), C217 (ST213), C175 (ST222), and NZ_CP012019.1 (ST222). (B) The CGView plot was generated for the three Pac-Bio genomes, using the NZ_CP012019.1 genome (ST222) as the reference. The order of the plot is as follows: NZ_CP012019.1 (ST222, inner black ring), C177 (ST213, dark red), C217 (ST213, lighter red), and the outermost circle is C175 (ST222, dark blue). Percent identity is displayed for the three isolates, with bins of 100%, 90%, or 70% matching sequence identity, and was calculated based on the NZ_CP012019.1 genome (ST222).
+
+\newpage
+
+**Literature Cited**
