@@ -23,7 +23,7 @@ usa$Count <- 0
 
 ## Read in the meta data with counts
 isoLoc <- read.csv(here::here('02_Manuscript/inputFiles',
-                              'supplementalTable2Metadata-ST222Cleaned.csv'),
+                              'supplementalTable2Metadata-ST222.csv'),
                    header = T, stringsAsFactors = F)
 
 isoState <- isoLoc %>%

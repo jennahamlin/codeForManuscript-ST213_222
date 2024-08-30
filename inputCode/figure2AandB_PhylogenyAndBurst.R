@@ -13,60 +13,61 @@ df <- data.frame(x=c(1, 2, 2, 3, 3, 4, 8),
 ccPlot <- 
   ggplot(data = df, aes(x, y)) +
   theme_void()+
-  geom_circle(aes(x0=4, y0=8, r=0.5), fill='#e41a1c', linetype = "blank",
+  geom_circle(aes(x0=4, y0=8, r=0.54), fill='#e41a1c', linetype = "blank",
               inherit.aes=FALSE) +
-  geom_circle(aes(x0=2, y0=8, r=0.5), fill='#3c6ff8', linetype = "blank",
+  geom_circle(aes(x0=2, y0=8, r=0.54), fill='#3c6ff8', linetype = "blank",
               inherit.aes=FALSE) +
-  geom_circle(aes(x0=1.5, y0=9, r=0.25), fill='#4daf4a', linetype = "blank",
+  geom_circle(aes(x0=1.5, y0=9, r=0.27), fill='#4daf4a', linetype = "blank",
               inherit.aes=FALSE) +
-  geom_circle(aes(x0=2.5, y0=9, r=0.25), linetype='dashed', color='black',
+  geom_circle(aes(x0=2.5, y0=9, r=0.27), linetype='dashed', color='black',
               fill='white', lwd=1, inherit.aes=FALSE) +
-  geom_circle(aes(x0=3.5, y0=9, r=0.25), linetype='dashed', color='black',
+  geom_circle(aes(x0=3.5, y0=9, r=0.27), linetype='dashed', color='black',
               fill='white', lwd=1, inherit.aes=FALSE) +
-  geom_circle(aes(x0=4.5, y0=9, r=0.25), linetype='dashed', color='black',
+  geom_circle(aes(x0=4.5, y0=9, r=0.27), linetype='dashed', color='black',
               fill='white', lwd=1, inherit.aes=FALSE) +
-  geom_circle(aes(x0=3.5, y0=6.5, r=0.25), fill = 'white', linetype = "dashed",
+  geom_circle(aes(x0=3.5, y0=6.5, r=0.27), fill = 'white', linetype = "dashed",
               lwd = 1, inherit.aes=FALSE) +
-  geom_circle(aes(x0=4.5, y0=6.5, r=0.25), fill = '#ffd966', linetype = 'blank',
+  geom_circle(aes(x0=4.5, y0=6.5, r=0.27), fill = '#ffd966', linetype = 'blank',
               inherit.aes=FALSE) +
-  geom_circle(aes(x0=5, y0=7, r=0.25), fill = '#984ea3', linetype='blank',
+  geom_circle(aes(x0=5, y0=7, r=0.27), fill = '#984ea3', linetype='blank',
               inherit.aes=FALSE) +
-  geom_circle(aes(x0=3.5, y0=5.5, r=0.25), linetype='dashed', color='black',
+  geom_circle(aes(x0=3.5, y0=5.5, r=0.27), linetype='dashed', color='black',
               fill='white', lwd=1, inherit.aes=FALSE) +
-  geom_circle(aes(x0=5.75, y0=6.5, r=0.25), fill = '#9fc5e8', linetype='blank',
+  geom_circle(aes(x0=5.75, y0=6.5, r=0.27), fill = '#9fc5e8', linetype='blank',
               inherit.aes=FALSE) +
-  annotate("text", x = 2, y = 8, label = "ST222", size = 7) +
-  annotate("text", x = 4, y = 8, label = "ST213", size = 7) +
-  annotate("text", x = 1.5, y = 9, label = "ST1742", size = 3.5) +
-  annotate("text", x = 2.5, y = 9, label = "ST2497", size = 3.5) +
-  annotate("text", x = 3.5, y = 9, label = "ST2728", size = 3.5) +
-  annotate("text", x = 4.5, y = 9, label = "ST1601", size = 3.5) +
-  annotate("text", x = 3.5, y = 6.5, label = "ST2517", size = 3.5) +
-  annotate("text", x = 4.5, y = 6.5, label = "ST227", size = 3.5) +
-  annotate("text", x = 5, y = 7, label = "ST289", size = 3.5) +
-  annotate("text", x = 3.5, y = 5.5, label = "ST2519", size = 3.5) +
-  annotate("text", x = 5.75, y = 6.5, label = "ST276", size = 3.5) +
-  annotate("segment", x = 1.95 , xend = 1.65, y = 8.5 , yend = 8.8, 
+  annotate("text", x = 2, y = 8, label = "ST222", size = 8, fontface = "bold") +
+  annotate("text", x = 4, y = 8, label = "ST213", size = 8, fontface = "bold") +
+  annotate("text", x = 1.5, y = 9, label = "ST1742", size = 4.5, fontface = "bold") +
+  annotate("text", x = 2.5, y = 9, label = "ST2497", size = 4.5, fontface = "bold") +
+  annotate("text", x = 3.5, y = 9, label = "ST2728", size = 4.5, fontface = "bold") +
+  annotate("text", x = 4.5, y = 9, label = "ST1601", size = 4.5, fontface = "bold") +
+  annotate("text", x = 3.5, y = 6.5, label = "ST2517", size = 4.5, fontface = "bold") +
+  annotate("text", x = 4.5, y = 6.5, label = "ST227", size = 4.5, fontface = "bold") +
+  annotate("text", x = 5, y = 7, label = "ST289", size = 4.5, fontface = "bold") +
+  annotate("text", x = 3.5, y = 5.5, label = "ST2519", size = 4.5, fontface = "bold") +
+  annotate("text", x = 5.75, y = 6.5, label = "ST276", size = 4.5, fontface = "bold") +
+  annotate("segment", x = 1.95 , xend = 1.65, y = 8.54, yend = 8.8, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 2 , xend = 2.35, y = 8.5 , yend = 8.8, 
+  annotate("segment", x = 2 , xend = 2.35, y = 8.54, yend = 8.8, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 3.95 , xend = 3.65, y = 8.5 , yend = 8.8, 
+  annotate("segment", x = 3.95 , xend = 3.65, y = 8.54, yend = 8.8, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 4 , xend = 4.35, y = 8.5 , yend = 8.8, 
+  annotate("segment", x = 4 , xend = 4.35, y = 8.54, yend = 8.8, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 3.5 , xend = 3.8, y = 6.75 , yend = 7.55, 
+  annotate("segment", x = 3.5 , xend = 3.8, y = 6.76, yend = 7.5, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 4.1 , xend = 4.35, y = 7.52 , yend = 6.7, 
+  annotate("segment", x = 4.2 , xend = 4.45, y = 7.5, yend = 6.79, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 4.4 , xend = 4.85, y = 7.7 , yend = 7.2, 
+  annotate("segment", x = 4.4 , xend = 4.85, y = 7.65, yend = 7.2, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 5.22 , xend = 5.55, y = 6.88, yend = 6.6, 
+  annotate("segment", x = 5.22 , xend = 5.55, y = 6.89, yend = 6.65, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 3.5 , xend = 3.5, y = 5.75, yend = 6.25, 
+  annotate("segment", x = 3.5 , xend = 3.5, y = 5.75, yend = 6.22, 
            colour='black', lwd = 1.5) +
-  annotate("segment", x = 2.5 , xend = 3.5, y = 8, yend = 8, 
+  annotate("segment", x = 2.52 , xend = 3.46, y = 8, yend = 8, 
            colour='black', lwd = 1.5) +
   coord_fixed()
+ccPlot
 
 ################################################################################
 ## Figure 2b phylogeny of st222/213 respective of other sequence types
@@ -136,32 +137,32 @@ treeP <- ggtree::ggtree(stTree, size = 1, color = '#797a7d', ladderize = TRUE) +
                                   as.numeric(stTree$node.label) > 85), 
                          size = 2.5) +
   ggtree::geom_treescale(label = 'nucleotide substitutions per site', 
-                         linesize = 1,
-                         color = '#797a7d', fontsize = 5) 
+                         linesize = 2,
+                         color = '#797a7d', fontsize = 7) 
 
 
 combined <- cowplot::plot_grid(ccPlot, treeP, labels = c("A", "B"),
                                label_size = 20,  nrow = 1)
 combined <- combined +
-  cowplot::draw_text('ST62', y = 0.115, x = 0.84, size = 20,
+  cowplot::draw_text('ST62', y = 0.10, x = 0.7, size = 20,
                      color = '#ff8c00', fontface = 'bold') + 
   cowplot::draw_text('ST213', y = 0.26, x = 0.84, size = 20,
                     color = '#e81123', fontface = 'bold') +
-  cowplot::draw_text('ST289', y = 0.30, x = 0.84, size = 20,
+  cowplot::draw_text('ST289', y = 0.31, x = 0.84, size = 20,
                     color = '#984ea3', fontface = 'bold') +
   cowplot::draw_text('ST222', y = 0.34, x = 0.84, size = 20,
                      color = '#3f83f1', fontface = 'bold') +
   cowplot::draw_text('ST1742', y = 0.38, x = 0.84, size = 20,
                      color = '#4daf4a', fontface = 'bold') +
-  cowplot::draw_text('ST1', y = 0.44, x = 0.84, size = 20,
+  cowplot::draw_text('ST1', y = 0.44, x = 0.7, size = 20,
                      color = '#00188f', fontface = 'bold') +
-  cowplot::draw_text('ST731', y = 0.53, x = 0.84, size = 20,
+  cowplot::draw_text('ST731', y = 0.54, x = 0.84, size = 20,
                      color = '#00bcf2', fontface = 'bold') +
   cowplot::draw_text('ST94', y = 0.615, x = 0.95, size = 20,
                      color = '#00b294', fontface = 'bold') +
-  cowplot::draw_text('ST42', y = 0.69, x = 0.95, size = 20,
+  cowplot::draw_text('ST42', y = 0.70, x = 0.95, size = 20,
                      color = '#bad80a', fontface = 'bold') +
-  cowplot::draw_text('ST36', y = 0.79, x = 0.95, size = 20,
+  cowplot::draw_text('ST36', y = 0.78, x = 0.95, size = 20,
                      color = '#009e49', fontface = 'bold') +
   cowplot::draw_text('ST187', y = 0.86, x = 0.95, size = 20,
                      color = '#ec008c', fontface = 'bold') +
@@ -170,9 +171,10 @@ combined <- combined +
   cowplot::draw_text('Clonal\ncomplex', y = 0.33, x = 0.96, size = 20,
                      fontface = 'bold') +
   cowplot::draw_line(x = 0.90, y = c(0.24, 0.39), color = "black", size = 2)
+
 combined
  
-ggplot2::ggsave(here::here("02_Manuscript/outputFiguress", 'figure2AandB-CCandP.pdf'),
+ggplot2::ggsave(here::here("02_Manuscript/outputFigures", 'figure2AandB-CCandPv2.pdf'),
                 combined,  device = 'pdf', width = 45, height = 30, units= 'cm')
 
  

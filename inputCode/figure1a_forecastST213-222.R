@@ -220,13 +220,13 @@ pBig222 <- pBig222 + annotate("text", x = 1995.5, y = 570,
 gline = linesGrob(gp = gpar(col = "black", lty = "dotted" ))
 
 first213 <- textGrob("ST213 - 1992\n OH, USA",
-                     gp=gpar(fontsize = 8, col = 'gray'))
+                     gp=gpar(fontsize = 8, col = 'black'))
 
 first222 <- textGrob("ST222 - 1998\n PA, USA",
-                     gp=gpar(fontsize = 8, col = 'gray'))
+                     gp=gpar(fontsize = 8, col = 'black'))
 
 firstEU <- textGrob("ST222 - 2010\n Germany, EU",
-                    gp=gpar(fontsize = 8, col = 'gray'))
+                    gp=gpar(fontsize = 8, col = 'black'))
 
 xTitle222 <- textGrob("Past and Future Frequency from 1992 to 2030",
                       gp=gpar(fontsize = 16, col = 'black', fontfamily = "sans",
